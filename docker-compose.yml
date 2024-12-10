@@ -1,0 +1,53 @@
+version: '3.9'
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ingest:
+    build: ./ingest
+    container_name: data_ingest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: testdb
+
+  jupyter:
+    build: ./jupyter
+    container_name: jupyter_notebook
+    depends_on:
+      - db
+    volumes:
+      - shared_data:/shared
+    ports:
+      - "8888:8888"
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: rootpassword
+      DB_NAME: testdb
+
+  trainer:
+    build: ./trainer
+    container_name: model_trainer
+    depends_on:
+      - jupyter
+    volumes:
+      - shared_data:/shared
+
+volumes:
+  shared_data:
